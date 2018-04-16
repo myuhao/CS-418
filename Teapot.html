@@ -1,0 +1,151 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<title>A teapot in London</title>
+<meta charset="utf-8">
+</head>
+
+
+<script id="shader-vs-skybox" type="x-shader/x-vertex">
+   // attribute vec3 aVertexNormal;
+   attribute vec3 aVertexPosition;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat3 uNMatrix;
+
+    varying vec3 vVertexNormal;
+    varying vec4 vVertexPosition;
+
+    void main(void) {
+
+      vVertexPosition = vec4(aVertexPosition, 1.0);
+      // vVertexNormal = aVertexNormal;
+
+      gl_Position = uPMatrix*uMVMatrix*vec4(aVertexPosition, 1.0);
+
+    }
+</script>
+<script id="shader-fs-skybox" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec3 vVertexNormal;
+    varying vec4 vVertexPosition;
+
+    uniform samplerCube uCubeSampler;
+
+    void main(void) {
+
+      vec4 color = textureCube(uCubeSampler, normalize(vVertexPosition).xyz);
+      gl_FragColor = vec4(color.xyz, 1.0);
+
+     }
+</script>
+
+
+<script id="shader-vs-teapot" type="x-shader/x-vertex">
+    attribute vec3 aVertexNormal;
+    attribute vec3 aVertexPosition;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat3 uNMatrix;
+
+    varying vec3 vColor;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+
+    varying vec3 viewCoords;
+
+    void main(void) {
+    //Get the vertex posistion in eye cordinates
+        vec4 vertexPositionEye4 = uMVMatrix * vec4(aVertexPosition, 1.0);
+        vPosition = vertexPositionEye4.xyz / vertexPositionEye4.w;
+        viewCoords = vertexPositionEye4.xyz;
+        //calculate the normal
+        vNormal = normalize(uNMatrix * aVertexNormal);
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+    }
+</script>
+
+<script id="shader-fs-teapot" type="x-shader/x-fragment">
+    precision mediump float;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+
+    uniform mat3 invVT;
+    uniform samplerCube uCubeSampler;
+    uniform mat3 normalMatrix;
+    varying vec3 viewCoords;
+
+    uniform vec3 uLightPosition;
+    uniform vec3 uAmbientLightColor;
+    uniform vec3 uDiffuseLightColor;
+    uniform vec3 uSpecularLightColor;
+
+    uniform vec3 uKAmbient;
+    uniform vec3 uKDiffuse;
+    uniform vec3 uKSpecular;
+    uniform float uShininess;
+
+    varying vec3 vColor;
+    void main(void) {
+        vec3 vertexPositionEye3 = vPosition;
+        // Calculate the vector (l) to the light source
+        // This is the L vector.
+        vec3 vectorToLightSource = normalize(uLightPosition - vertexPositionEye3);
+
+        // Transform the normal (n) to eye coordinates
+        vec3 normalEye = vNormal;
+
+        // Calculate n dot l for diffuse lighting
+        float diffuseLightWeightning = max(dot(normalEye,
+                                        vectorToLightSource), 0.0);
+
+        // Calculate the reflection vector (r) that is needed for specular light
+        vec3 reflectionVector = normalize(reflect(-vectorToLightSource,
+                                                 normalEye));
+        //This is the V vector.
+        vec3 viewVectorEye = -normalize(vertexPositionEye3);
+
+        //Attempt to calculate the H vector
+        vec3 lplusv = vectorToLightSource + viewVectorEye;
+        vec3 H = normalize(lplusv);
+        //B-P use (N dot H) ** b
+        float ndoth = max(dot(normalEye, H), 0.0);
+        //P-P use (R dot V) ** a
+        float rdotv = max(dot(reflectionVector, viewVectorEye), 0.0);
+        //Use B-P model so use ndoth.
+        float specularLightWeightning = pow(ndoth, uShininess);
+        //Color calculation. Diffuse color is subsitute with vColor(Height depedent)
+        //Note that uKDiffuse not used because of this reason.
+        vec4 baseColor = vec4(((uAmbientLightColor*uKAmbient)
+                + (uDiffuseLightColor*uKDiffuse) * diffuseLightWeightning
+                + (uSpecularLightColor*uKSpecular) * specularLightWeightning),1.0);
+
+        vec3 N = normalMatrix * vNormal;
+        vec3 V = -viewCoords;
+        vec3 R = 2.0 * dot(V, N) * N - V;
+        R = invVT * R;
+        gl_FragColor = textureCube(uCubeSampler, R);
+        //gl_FragColor = baseColor;
+     }
+</script>
+
+
+<script src="gl-matrix-min.js"></script>
+<script src="webgl-utils.js"></script>
+<script src="simpleModeling.js"></script>
+<script src="teapot.js"></script>
+<script src="TriMesh.js"></script>
+<body onload="start();">
+ <canvas id="myGLCanvas" width="800" height="800"></canvas>
+  <div id="controls" style="display:inline-block;padding:50px;vertical-align:top">
+    <p>Rotate the entire scence: Use arrow keys.</p>
+    <p>Rotate the reapot alone: Use WASD keys.</p>
+    <p>Please use Firefox if failed to show on Chrome</p>
+    <input type="radio" name="reflective" >Should the teapot be refective?
+ </div>
+</body>
+
+</html>
