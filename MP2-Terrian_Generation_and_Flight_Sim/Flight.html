@@ -1,0 +1,164 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<title>Do a barrel roll</title>
+<meta charset="utf-8">
+</head>
+
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexNormal;
+    attribute vec3 aVertexPosition;
+    //This is the color information of each vertex
+    attribute vec3 aVertexColor;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat3 uNMatrix;
+
+
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    varying vec3 vColor;
+    varying float height;
+
+
+    //New shader implmenting B-P.
+    void main(void) {
+        //Get the vertex posistion in eye cordinates
+        vec4 vertexPositionEye4 = uMVMatrix * vec4(aVertexPosition, 1.0);
+        vPosition = vertexPositionEye4.xyz / vertexPositionEye4.w;
+        //calculate the normal
+        vNormal = normalize(uNMatrix * aVertexNormal);
+
+        vColor = aVertexColor;
+        height = aVertexPosition.z;
+
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+    }
+</script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+
+    uniform vec3 uLightPosition;
+    uniform vec3 uAmbientLightColor;
+    uniform vec3 uDiffuseLightColor;
+    uniform vec3 uSpecularLightColor;
+
+    uniform vec3 uKAmbient;
+    uniform vec3 uKDiffuse;
+    uniform vec3 uKSpecular;
+    uniform float uShininess;
+    //Height info can be used in the future.
+    varying float height;
+
+    uniform float fogDensity;
+
+    varying vec3 vColor;
+    //Only need diffuse shading, so uAmbientLightColor and uSpecularLightColor are set to 0.
+
+    void main(void) {
+        vec3 vertexPositionEye3 = vPosition;
+
+        // Calculate the vector (l) to the light source
+        // This is the L vector.
+        vec3 vectorToLightSource = normalize(uLightPosition - vertexPositionEye3);
+
+        // Transform the normal (n) to eye coordinates
+        vec3 normalEye = vNormal;
+
+        // Calculate n dot l for diffuse lighting
+        float diffuseLightWeightning = max(dot(normalEye,
+                                        vectorToLightSource), 0.0);
+
+        // Calculate the reflection vector (r) that is needed for specular light
+        vec3 reflectionVector = normalize(reflect(-vectorToLightSource,
+                                                 normalEye));
+        //This is the V vector.
+        vec3 viewVectorEye = -normalize(vertexPositionEye3);
+
+        //Attempt to calculate the H vector
+        vec3 lplusv = vectorToLightSource + viewVectorEye;
+        vec3 H = normalize(lplusv);
+        //B-P use (N dot H) ** b
+        float ndoth = max(dot(normalEye, H), 0.0);
+        //P-P use (R dot V) ** a
+        float rdotv = max(dot(reflectionVector, viewVectorEye), 0.0);
+        //Use B-P model so use ndoth.
+        float specularLightWeightning = pow(ndoth, uShininess);
+        //Color calculation. Diffuse color is subsitute with vColor(Height depedent)
+        //Note that uKDiffuse not used because of this reason.
+        vec4 baseColor = vec4(((uAmbientLightColor*uKAmbient)
+                + (uDiffuseLightColor*vColor) * diffuseLightWeightning
+                + (uSpecularLightColor*uKSpecular) * specularLightWeightning),1.0);
+
+        //Dealing with fog
+        float fogCoord = (gl_FragCoord.z / gl_FragCoord.w);
+        vec4 fogColor = vec4(1.0, 1.0, 1.0, 1.0);
+
+        //Calculate the "fogFactor"
+        const float LOG2 = 1.442695;
+        //fog Density is set at the JS file
+        float fogFactor = exp2(-fogDensity * fogDensity * fogCoord * fogCoord * LOG2);
+        fogFactor = clamp(fogFactor, 0.0, 1.0);
+        //Add the fog to the picture.
+        gl_FragColor = mix(fogColor, baseColor, fogFactor);
+
+     }
+</script>
+
+
+
+<script src="gl-matrix-min.js"></script>
+<script src="webgl-utils.js"></script>
+<script src="Terrain.js"></script>
+<script src="HelloTerrain.js"></script>
+<body onload="startup();">
+ <canvas id="myGLCanvas" width="1000" height="800"></canvas>
+
+    <fieldset>
+        <legend>Flying Options</legend>
+        <form id="input_form">
+         <input type="checkbox" name="primitive" id="invertY" value="invertY"> invertY?
+         </form>
+
+        <form id="fog_toggle">
+         <input type="checkbox" name="primitive" id="fog_toggle" value="fog_toggle" checked> Toggle Fog?
+         </form>
+
+         <form>
+            <p>Choose how much fog are there</p>
+             <input type="range" min="0" max="1800" value="1200" class="slider" id="myRange">
+         </form>
+
+        <form>
+            <p>You can change your speed</p>
+             <input type="range" min="0" max="10000" value="1200" class="slider" id="mySpeed">
+         </form>
+    </fieldset>
+
+
+
+        <p1>
+        Refresh to generate a new random terrian.
+        </p1>
+
+
+<fieldset>
+    <p1>
+        Roll: <strong>Left and Right</strong> <br />
+
+        Pitch: <strong>Up and Down</strong> <br />
+
+        Yaw: <strong>A and D</strong><br />
+
+        Speed: <strong>W and S</strong> or <strong> + and -</strong> <br />
+    </p1>
+</fieldset>>
+
+</body>
+
+</html>
