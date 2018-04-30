@@ -1,0 +1,110 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<title>Physics!</title>
+<meta charset="utf-8">
+</head>
+
+
+<script id="shader-vs" type="x-shader/x-vertex">
+   attribute vec3 aVertexNormal;
+   attribute vec3 aVertexPosition;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat3 uNMatrix;
+
+    varying vec3 vVertexNormal;
+    varying vec3 vVertexPosition;
+
+    void main(void) {
+
+      vec4 vertexPositionEye4 = uMVMatrix * vec4(aVertexPosition, 1.0);
+      vVertexPosition = vertexPositionEye4.xyz / vertexPositionEye4.w;
+      vVertexNormal = normalize(uNMatrix * aVertexNormal);
+
+      gl_Position = uPMatrix*uMVMatrix*vec4(aVertexPosition, 1.0);
+
+    }
+</script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec3 vVertexNormal;
+    varying vec3 vVertexPosition;
+
+    uniform vec3 uLightPosition;
+    uniform vec3 uAmbientLightColor;
+    uniform vec3 uDiffuseLightColor;
+    uniform vec3 uSpecularLightColor;
+
+    uniform vec3 uKAmbient;
+    uniform vec3 uKDiffuse;
+    uniform vec3 uKSpecular;
+    uniform float uShininess;
+
+    void main(void) {
+
+      vec3 vertexPositionEye3 = vVertexPosition;
+      //vec3 vColor = vVertexPosition;
+      // Calculate the vector (l) to the light source
+      // This is the L vector.
+      vec3 vectorToLightSource = normalize(uLightPosition - vertexPositionEye3);
+      // Transform the normal (n) to eye coordinates
+      vec3 normalEye = vVertexNormal;
+      // Calculate n dot l for diffuse lighting
+      float diffuseLightWeightning = max(dot(normalEye,
+                                      vectorToLightSource), 0.0);
+      // Calculate the reflection vector (r) that is needed for specular light
+      vec3 reflectionVector = normalize(reflect(-vectorToLightSource,
+                                               normalEye));
+      //This is the V vector.
+      vec3 viewVectorEye = -normalize(vertexPositionEye3);
+      //Attempt to calculate the H vector
+      vec3 lplusv = vectorToLightSource + viewVectorEye;
+      vec3 H = normalize(lplusv);
+      //B-P use (N dot H) ** b
+      float ndoth = max(dot(normalEye, H), 0.0);
+      //P-P use (R dot V) ** a
+      float rdotv = max(dot(reflectionVector, viewVectorEye), 0.0);
+      //Use B-P model so use ndoth.
+      float specularLightWeightning = pow(ndoth, uShininess);
+      //Color calculation. Diffuse color is subsitute with vColor(Height depedent)
+      //Note that uKDiffuse not used because of this reason.
+      vec4 baseColor = vec4(((uAmbientLightColor*uKAmbient)
+              + (uDiffuseLightColor*uKDiffuse) * diffuseLightWeightning
+              + (uSpecularLightColor*uKSpecular) * specularLightWeightning),1.0);
+      gl_FragColor = baseColor;
+      //gl_FragColor = vec4(uKAmbient, 1.0);
+     }
+</script>
+
+
+<script src="gl-matrix-min.js"></script>
+<script src="webgl-utils.js"></script>
+<script src="simpleModeling.js"></script>
+<script src="Engine.js"></script>
+<body onload="startup();">
+ <canvas id="myGLCanvas" width="800" height="800"></canvas>
+  <div id="controls" style="display:inline-block;padding:50px;vertical-align:top">
+    <p>Simple Balls in a box</p>
+    <button type="button" id="btn" onclick="addSphere()">Click me to add more BALL!!!!</button>
+    <button type="button" onclick="reset()">Reset</button>
+    <form id="f_slider">
+      <p>You can choose how much fraction there are in the box</p>
+      <input type="range" min="0" max="1000" value="500" class="slider" id="slider">
+    </form>
+    <form>
+      <p>Which planet are you on?</p>
+      <input type="radio" name="planet" id="earth" value="9.8"checked>Earth
+      <input type="radio" name="planet" id="mars" value="3.711">Mars
+      <input type="radio" name="planet" id="moon" value="1.62">Moon
+    </form>
+    <li>Initial velocity is set to be -1 m/s to 1 m/s.</li>
+    <li>Masses of each ball is between 0-100 kg.</li>
+    <li>All collisions are assumed to be perfectly elastic.</li>
+ </div>
+</body>
+
+</html>
