@@ -61,13 +61,15 @@ var forces = []; //in N
 //The range in which the sphere will be spawned at
 var sphereSpwnRange = 5;
 //The range in which the initial velocity of the sphere will be.
-var sphereViRange = 1;
+var sphereViRange = 2;
 //gravity of the Earth, 9.8 m/s^2
 var gravity = [0, -9.8, 0];
 //coeefient of fraction of the ball with air.
 var fraction = 10;
 //How elastic the collision is, in this case, perfect elastic collsion
 var elasticity = 1.0
+//Position of the "box".
+var boarder = 5.0;
 
 //-------------------------------------------------------------------------
 /**
@@ -328,7 +330,10 @@ function draw() {
         for (i = 0; i < sphereCount; i++) {
             mvPushMatrix();
             var transformVec = vec3.fromValues(positions[i][0], positions[i][1], positions[i][2]);
-            mat4.translate(mvMatrix, mvMatrix, transformVec)
+            mat4.translate(mvMatrix, mvMatrix, transformVec);
+            var scale = 1;
+            var scaleVec = vec3.fromValues(scale,scale,scale);
+            mat4.scale(mvMatrix, mvMatrix, scaleVec);
             setMatrixUniforms();
             setMaterialUniforms(shininess,kAmbient,kTerrainDiffuse,kSpecular);
             setLightUniforms(lightPosition,lAmbient,lDiffuse,lSpecular);
@@ -401,11 +406,22 @@ function animate() {
 
             //Or could use drag ** t model, not sure what it means physically, use it anyway
             var drag = document.getElementById("slider").value / 1000;
+            var prevV = velocities[i][j];
             velocities[i][j] = velocities[i][j] * Math.pow(drag, step) + gravity[j] * step
+            //If next velocity is smaller than 0, meaning the ball should stip because of the drag.
+            if (velocities[i][j] > 0 && prevV < 0) {
+              velocities[i][j] = 0;
+              console.log("smaller than 0?")
+            }
+            if (j == 1 && velocities[i][j] < -1.6
+              && Math.abs(velocities[i][j]) < 2) {
+             console.log(velocities[i][j], prevV) 
+            }
+            
             //Now update the postion using the velocity
             var nextPostion = positions[i][j] + step * velocities[i][j]
             //Check if it is outside the box of size 5 + radius.
-            if (nextPostion > 5 || nextPostion < -5) {
+            if (nextPostion > boarder || nextPostion < -boarder) {
                 //update Velocity
                 velocities[i][j] = -velocities[i][j] * elasticity;
             }
@@ -413,6 +429,14 @@ function animate() {
             //Update the fraction to make sure it always act against the velocity, used for the first model.
             var vDirection = Math.abs(velocities[i][j]) / velocities[i][j]
             forces[i][j] = -vDirection * fraction
+        }
+        //How to deal with the boucing at floor?
+        var vy = velocities[i][1];
+        var y = positions[i][1];
+        //console.log(vy, y)
+        if (vy < 0.001 && y + boarder <= boarder / 1500) {
+          velocities[i][1] = 0;
+          positions[i][1] = -boarder;
         }
     }
 }
@@ -442,9 +466,9 @@ function addSphere() {
     var tempZ = randomRange(-sphereSpwnRange, sphereSpwnRange);
     var temp = [tempX, tempY, tempZ]
     positions.push(temp);
-    //Give it an initial velocity
-    var tempVx = randomRange(-sphereViRange, sphereViRange);
-    var tempVy = randomRange(-sphereViRange, sphereViRange);
+    //Give it an initial velocity, give higher vi in x and z direction.
+    var tempVx = randomRange(-5 * sphereViRange, 5 * sphereViRange);
+    var tempVy = randomRange(-5 * sphereViRange, 5 * sphereViRange);
     var tempVz = randomRange(-sphereViRange, sphereViRange);
     var tempV = [tempVx, tempVy, tempVz];
     velocities.push(tempV);
