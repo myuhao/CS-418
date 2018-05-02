@@ -1,3 +1,9 @@
+/**
+ * A basic physics engine account for particel collison in a box.
+ * @author ymin6@illinois.edu (Yuhao Min).
+ * Base on code from perious MPs.
+ */
+
 var gl;
 var canvas;
 
@@ -484,6 +490,7 @@ function addSphere() {
 
 /**
  * Reset all spheres.
+ * Just clean everything.
  */
 function reset() {
     sphereCount = 0;
