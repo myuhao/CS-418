@@ -69,7 +69,7 @@
       //P-P use (R dot V) ** a
       float rdotv = max(dot(reflectionVector, viewVectorEye), 0.0);
       //Use B-P model so use ndoth.
-      float specularLightWeightning = pow(ndoth, uShininess);
+      float specularLightWeightning = pow(rdotv, uShininess);
       //Color calculation. Diffuse color is subsitute with vColor(Height depedent)
       //Note that uKDiffuse not used because of this reason.
       vec4 baseColor = vec4(((uAmbientLightColor*uKAmbient)

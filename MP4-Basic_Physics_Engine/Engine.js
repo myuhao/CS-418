@@ -34,7 +34,7 @@ var lAmbient = [1,1,1];
 /** @global Diffuse light color/intensity for Phong reflection */
 var lDiffuse = [1,1,1];
 /** @global Specular light color/intensity for Phong reflection */
-var lSpecular =[0.1,0.1,0.1];
+var lSpecular =[1,1,1];
 
 //Material parameters
 /** @global Ambient material color/intensity for Phong reflection */
@@ -42,7 +42,7 @@ var kAmbient = [0.5,0.5,1.0];
 /** @global Diffuse material color/intensity for Phong reflection */
 var kTerrainDiffuse = [0,1,1];
 /** @global Specular material color/intensity for Phong reflection */
-var kSpecular = [0.0,0.0,0.0];
+var kSpecular = [1,1,1];
 /** @global Shininess exponent for Phong reflection */
 var shininess = 5;
 
@@ -278,6 +278,9 @@ function setLightUniforms(loc,a,d,s) {
   gl.uniform3fv(shaderProgram.uniformSpecularLightColorLoc, s);
 }
 
+/**
+ * Make a sphere buffer using the code in simpleModling.js
+ */
 function setupSphereBuffers() {
   var sphereSoup = [];
   var sphereNormals = [];
@@ -297,10 +300,11 @@ function setupSphereBuffers() {
   sphereVertexNormalBuffer.numItems = numT * 3;
 
   console.log("Normals ", sphereNormals.length/3);
-  console.log(sphereSoup)
-
 }
 
+/**
+ * Set up all buffers.
+ */
 function setupBuffers() {
     setupSphereBuffers();
 }
@@ -382,15 +386,19 @@ function drawSphere(){
 
 //----------------------------------------------------------------------------------
 /**
-  * Update any model transformations
+  * Update any model transformations.
+  * Calulate all properties.
   */
 function animate() {
+    //First get the time steps.
     now = Date.now();
     step = (now - last) / 1000 //Time in s.
     last = now;
+    //Deal with each sphere indivadually.
     for (i = 0; i < sphereCount; i++) {
+        //Deal with each componets.
         for (j = 0; j < 3; j++) {
-            //Get gatvity number
+            //Get gatvity numbers for different planet.
             if (document.getElementById("moon").checked) {
                 gravity = [0, -1.62, 0];
             } else if (document.getElementById("mars").checked) {
@@ -402,38 +410,33 @@ function animate() {
             //vt = v0 + a * dt
             //a = F / m
             //f = c * v ^ 2
-            //velocities[i][j] = velocities[i][j] + step * (velocities[i][j] * velocities[i][j] * forces[i][j] / masses[i] + gravity[j]);
-
-            //Or could use drag ** t model, not sure what it means physically, use it anyway
+            //velocities[i][j] = velocities[i][j] +
+            //step * (velocities[i][j] * velocities[i][j] * forces[i][j] /masses[i] + gravity[j]);
+            //Or could use drag ** t model.
             var drag = document.getElementById("slider").value / 1000;
-            var prevV = velocities[i][j];
+            //Get the velocity update.
             velocities[i][j] = velocities[i][j] * Math.pow(drag, step) + gravity[j] * step
-            //If next velocity is smaller than 0, meaning the ball should stip because of the drag.
-            if (velocities[i][j] > 0 && prevV < 0) {
-              velocities[i][j] = 0;
-              console.log("smaller than 0?")
-            }
-            if (j == 1 && velocities[i][j] < -1.6
-              && Math.abs(velocities[i][j]) < 2) {
-             console.log(velocities[i][j], prevV) 
-            }
-            
             //Now update the postion using the velocity
             var nextPostion = positions[i][j] + step * velocities[i][j]
-            //Check if it is outside the box of size 5 + radius.
+            /**
+             * Check if it is outside the box of size boarder + radius.
+             * Radius omitted because all sphere are same size.
+             */
             if (nextPostion > boarder || nextPostion < -boarder) {
-                //update Velocity
+                //update Velocity if hit the wall.
                 velocities[i][j] = -velocities[i][j] * elasticity;
             }
+            //Update the new position.
             positions[i][j] = positions[i][j] + step * velocities[i][j];
             //Update the fraction to make sure it always act against the velocity, used for the first model.
             var vDirection = Math.abs(velocities[i][j]) / velocities[i][j]
             forces[i][j] = -vDirection * fraction
         }
-        //How to deal with the boucing at floor?
+        //How to deal with the boucing at floor? Stop if v is slow and y is low.
         var vy = velocities[i][1];
         var y = positions[i][1];
         //console.log(vy, y)
+        //Threshold choosen by experiments.
         if (vy < 0.001 && y + boarder <= boarder / 1500) {
           velocities[i][1] = 0;
           positions[i][1] = -boarder;
@@ -467,8 +470,8 @@ function addSphere() {
     var temp = [tempX, tempY, tempZ]
     positions.push(temp);
     //Give it an initial velocity, give higher vi in x and z direction.
-    var tempVx = randomRange(-5 * sphereViRange, 5 * sphereViRange);
-    var tempVy = randomRange(-5 * sphereViRange, 5 * sphereViRange);
+    var tempVx = randomRange(-10 * sphereViRange, 10 * sphereViRange);
+    var tempVy = randomRange(-10 * sphereViRange, 10 * sphereViRange);
     var tempVz = randomRange(-sphereViRange, sphereViRange);
     var tempV = [tempVx, tempVy, tempVz];
     velocities.push(tempV);
